@@ -433,8 +433,54 @@ namespace PlaywrightBeginner
             returnData.Should().Contain("region1.google-analytics.com/g");
             returnData.Should().Contain("en=page_view");
             returnData.Should().Contain("/product/");
+        }
 
 
+
+        [Test]
+        public async Task FlipkartNetworkInterception()
+        {
+            using var playwright = await Playwright.CreateAsync();
+            await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            {
+                Headless = false
+            });
+
+            var context = await browser.NewContextAsync();
+            var page = await context.NewPageAsync();
+
+            //=+ is the shorthand for calling a delegate and _, is an empty parameter
+            //page.Request is the 'Action, while () => { ... } is the lambda expression that creates a delegate instance.
+            page.Request += (_, request) => Console.WriteLine(request.Method + "---" + request.Url);
+            page.Response += (_, response) => Console.WriteLine(response.Status + "---" + 200);
+
+            //blocking and cancel a request before it hits the server the below is a delegate code
+            await page.RouteAsync(url: "**/*", async route =>
+           {
+               if (route.Request.ResourceType == "image") await route.AbortAsync();
+               //the above means, before any request with a resouce tyoe 'image' hits the server, block (route async) and cancel 
+               //(abort async) it. meaning the images would not load
+               else
+               {
+                   await route.ContinueAsync();
+               }
+           });
+            //what you will notice with this when you run it, is that the load will continue to load but with images displayed. 
+
+            /*await page.GotoAsync("https://www.flipkart.com/", new PageGotoOptions
+            {
+                WaitUntil = WaitUntilState.DOMContentLoaded
+            });*/
+            await page.GotoAsync(url: "https://www.flipkart.com/", new PageGotoOptions
+            {
+                WaitUntil = WaitUntilState.NetworkIdle
+            });
+
+
+        }
+        [Test]
+        public async Task FlipkartNetworkInterception2()
+        {
         }
     }
 }
